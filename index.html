@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>小葵的生日大冒险 - V52.9(最终完美庆典版)</title>
+    <style>
+        /* --- 基础样式 --- */
+        body { background-color: #111; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: "Microsoft YaHei", sans-serif; overflow: hidden; user-select: none; }
+        #game-container { position: relative; width: 800px; height: 600px; box-shadow: 0 0 50px rgba(0,0,0,0.8); border: 4px solid #555; background-color: #000; image-rendering: pixelated; }
+        canvas { display: block; width: 100%; height: 100%; outline: none; }
+        .hidden { display: none !important; }
+        .pixel-btn { background: #ff6b6b; border: 4px solid #800000; color: white; padding: 10px 15px; font-family: 'Courier New', monospace; font-size: 16px; cursor: pointer; margin: 5px; display: inline-block; }
+        .pixel-btn:active { transform: translate(2px, 2px); }
+        .pixel-btn.start { background: #51cf66; border-color: #1e5c2b; }
+        
+        /* 交互提示 */
+        #interact-hint { position: absolute; bottom: 80px; width: 100%; text-align: center; font-size: 20px; color: #fff; text-shadow: 2px 2px 0 #000; animation: pulse 1s infinite; z-index: 45; pointer-events: none; display: none; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* 手机 & UI */
+        #phone-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 340px; height: 600px; background: #f0f0f0; border: 8px solid #333; border-radius: 10px; display: none; flex-direction: column; z-index: 100; overflow: hidden; box-shadow: 0 0 40px rgba(0,0,0,0.6); }
+        #phone-header { background: #333; color: #eee; padding: 15px; text-align: center; font-size: 18px; border-bottom: 4px solid #111; min-height: 25px; font-family: monospace; }
+        #phone-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
+        .msg-row { display: flex; margin-bottom: 15px; opacity: 0; animation: slideIn 0.3s forwards; }
+        .msg-row.me { justify-content: flex-end; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .avatar-img { width: 40px; height: 40px; border: 2px solid #000; margin-right: 10px; object-fit: cover; background: #ff99cc; }
+        .bubble { background: #fff; color: #000; padding: 12px; border: 2px solid #000; max-width: 200px; font-size: 18px; line-height: 1.4; }
+        .msg-row.me .bubble { background: #a0e0ff; }
+        #phone-footer { padding: 10px; background: #ccc; border-top: 4px solid #333; text-align: center; min-height: 60px; display: flex; justify-content: center; align-items: center;}
+        
+        #dialog-box { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0, 0, 0, 0.9); border: 4px solid #fff; padding: 20px; z-index: 50; color: white; font-size: 20px; line-height: 1.5; }
+        #dialog-name { color: #ffd700; font-size: 24px; margin-bottom: 10px; font-weight: bold; }
+        #task-bar { position: absolute; top: 20px; width: 100%; text-align: center; color: #0f0; font-family: 'Courier New', monospace; font-size: 24px; text-shadow: 2px 2px 0 #000; z-index: 40; pointer-events: none; display: none; animation: blink 2s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        #safe-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 260px; background: #333; border: 6px solid #888; padding: 20px; z-index: 70; display: none; flex-direction: column; align-items: center; }
+        #safe-screen { width: 100%; background: #000; color: #0f0; font-family: monospace; font-size: 24px; text-align: center; padding: 10px 0; margin-bottom: 10px; border: 2px solid #555; }
+        #safe-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 100%; }
+        .safe-btn { background: #555; border: 2px solid #222; color: white; padding: 10px; text-align: center; cursor: pointer; font-weight: bold; font-family: monospace; font-size: 20px; }
+        .safe-btn:active { background: #777; }
+        
+        #quiz-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: #222; border: 6px solid #ffd700; padding: 20px; z-index: 60; display: none; flex-direction: column; box-shadow: 10px 10px 0 rgba(0,0,0,0.5); font-family: 'Courier New', monospace; }
+        #quiz-title { text-align: center; color: #ffd700; font-size: 24px; margin-bottom: 20px; border-bottom: 2px dashed #555; padding-bottom: 10px; }
+        #quiz-question { color: white; font-size: 20px; margin-bottom: 20px; line-height: 1.4; min-height: 30px; }
+        #quiz-options { display: flex; flex-direction: column; gap: 10px; }
+        .quiz-option-btn { background: #444; border: 2px solid #777; color: white; padding: 15px; text-align: left; cursor: pointer; font-family: inherit; font-size: 18px; }
+        .quiz-option-btn:hover { background: #666; border-color: #fff; }
+        
+        #transition-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 200; display: none; color: white; justify-content: center; align-items: center; flex-direction: column; }
+        .loader { border: 8px solid #333; border-top: 8px solid #fff; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* --- 抓娃娃机 --- */
+        #claw-machine { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; height: 420px; background: #ffccff; border: 8px solid #ff66b2; z-index: 80; display: none; flex-direction: column; overflow: hidden; box-shadow: 0 0 0 1000px rgba(0,0,0,0.8); }
+        #claw-header { height: 40px; background: #ff66b2; color: white; text-align: center; line-height: 40px; font-weight: bold; font-size: 20px; }
+        #claw-instruction { background: #fff9c4; color: #d32f2f; text-align: center; font-size: 14px; padding: 5px; font-weight: bold; border-bottom: 2px solid #ff66b2; }
+        #claw-area { flex: 1; position: relative; background: #fff0f5; overflow: hidden; border-bottom: 4px solid #ff66b2; }
+        #claw-assembly { position: absolute; top: 0; left: 20px; width: 40px; height: 300px; transition: height 0.5s; }
+        #claw-rod { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background: #555; }
+        #claw-hub { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 24px; height: 16px; background: #333; border-radius: 4px; z-index: 2; }
+        .claw-finger { position: absolute; bottom: -20px; width: 16px; height: 30px; border: 4px solid #555; border-top: none; z-index: 1; }
+        #claw-left { left: -8px; border-right: none; border-radius: 0 0 0 20px; transform: rotate(15deg); transform-origin: top right; }
+        #claw-right { right: -8px; border-left: none; border-radius: 0 0 20px 0; transform: rotate(-15deg); transform-origin: top left; }
+        .doll { position: absolute; bottom: 10px; font-size: 40px; width: 50px; text-align: center; transition: left 0.5s linear; }
+        #claw-controls { height: 80px; background: #eee; display: flex; justify-content: space-around; align-items: center; padding: 0 20px; }
+        .machine-btn { width: 80px; height: 50px; border-radius: 50%; font-weight: bold; border: 4px solid rgba(0,0,0,0.2); cursor: pointer; font-size: 18px; color: white; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
+        .machine-btn:active { transform: translateY(4px); box-shadow: none; }
+        #claw-status { position: absolute; top: 75px; right: 10px; background: rgba(0,0,0,0.7); color: #fff; padding: 5px 10px; border-radius: 5px; font-size: 14px; z-index: 10; }
+
+        /* 打地鼠 */
+        #mole-machine { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 460px; height: 500px; background: #f0ad4e; border: 8px solid #d9534f; z-index: 81; display: none; flex-direction: column; box-shadow: 0 0 0 1000px rgba(0,0,0,0.8); }
+        #mole-header { height: 60px; background: #d9534f; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; color: white; font-size: 24px; font-family: monospace; font-weight: bold; }
+        #mole-grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px; background: #8b4513; }
+        .mole-hole { background: #3e2723; border-radius: 50%; position: relative; overflow: hidden; border: 4px solid #5d4037; cursor: pointer;}
+        .mole-hole::after { content:''; display:block; padding-bottom: 100%; }
+        .mole-sprite { position: absolute; bottom: -100%; left: 15%; width: 70%; height: 80%; border-radius: 40% 40% 0 0; transition: bottom 0.1s; display: flex; justify-content: center; align-items: center; font-size: 40px; }
+        .mole-sprite.up { bottom: 0; }
+        .mole-orange { background: #ff8c00; border: 2px solid #fff; }
+        .mole-yellow { background: #ffd700; border: 2px solid #ff0000; }
+        #mole-start-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 10; font-size: 20px; text-align: center; }
+
+        /* 大结局 UI */
+        #prize-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 150; display: none; flex-direction: column; justify-content: center; align-items: center; color: #ffd700; }
+        #prize-container { width: 300px; height: 300px; border: 10px solid #fff; background: #333; display: flex; justify-content: center; align-items: center; box-shadow: 0 0 100px #ffd700; margin-bottom: 30px; animation: float 3s infinite ease-in-out; overflow: hidden;}
+        #prize-container img { width: 100%; height: 100%; object-fit: cover; }
+        #prize-placeholder { font-size: 150px; }
+        @keyframes float { 0% { transform: translateY(0); } 50% { transform: translateY(-20px); } 100% { transform: translateY(0); } }
+        
+        /* 幻灯片 */
+        #slideshow-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 180; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        .slide-frame { width: 640px; height: 480px; border: 20px solid #eee; background: #222; position: relative; display: flex; justify-content: center; align-items: center; font-family: 'Courier New', monospace; text-align: center; overflow: hidden;}
+        .slide-img-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        .slide-img-container img { width: 100%; height: 100%; object-fit: contain; }
+        .slide-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 50px; height: 50px; background: rgba(255,255,255,0.3); color: white; font-size: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; border-radius: 50%; user-select: none; z-index: 10; }
+        .slide-btn:hover { background: rgba(255,255,255,0.6); }
+        .slide-btn.prev { left: 10px; }
+        .slide-btn.next { right: 10px; }
+        .slide-finish-btn { margin-top: 20px; background: #ff4081; color: white; padding: 10px 20px; cursor: pointer; font-size: 16px; font-family: monospace; border: 2px solid #fff; }
+        
+        #input-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(0,0,0,0.95); border: 4px solid #fff; padding: 30px; z-index: 190; display: none; flex-direction: column; align-items: center; text-align: center; }
+        #user-input { background: #333; color: white; border: 2px solid #888; padding: 10px; width: 80%; font-size: 20px; font-family: monospace; margin: 20px 0; outline: none; }
+        
+        /* V59: 信件 UI */
+        #letter-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        #letter-container { max-width: 600px; max-height: 500px; overflow: hidden; border: 10px solid #fff; box-shadow: 0 0 50px rgba(255,255,255,0.5); }
+        #letter-container img { width: 100%; height: auto; display: block; }
+        
+        #fireworks-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 90; pointer-events: none; display: none; }
+        #bgm-indicator { position: absolute; top: 10px; right: 10px; color: #0f0; font-family: monospace; z-index: 100; display: none; text-shadow: 0 0 5px #0f0; }
+        #end-game-btn { position: absolute; bottom: 20px; right: 20px; z-index: 200; display: none; padding: 10px; background: #333; border: 2px solid #fff; cursor: pointer; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600" tabindex="-1"></canvas>
+    <canvas id="fireworks-canvas" width="800" height="600"></canvas>
+    
+    <audio id="bgm" src="bgm.mp3" loop></audio>
+    <audio id="claw-bgm" src="claw_bgm.mp3" loop></audio>
+    <audio id="mole-bgm" src="mole_bgm.mp3" loop></audio>
+    <audio id="hit-sfx" src="hit.mp3"></audio>
+    <audio id="claw-drop-sfx" src="claw_drop.mp3"></audio>
+    <audio id="win-sfx" src="win.mp3"></audio>
+    <audio id="dog-bark-sfx" src="dog_bark.mp3"></audio>
+    <audio id="slide-bgm" src="piano.mp3"></audio>
+    <audio id="piano2" src="piano2.mp3"></audio> <audio id="firework-sfx" src="firework.mp3"></audio>
+    
+    <div id="phone-overlay"><div id="phone-header"></div><div id="phone-messages"></div><div id="phone-footer"></div></div>
+    <div id="dialog-box" class="hidden"><div id="dialog-name"></div><div id="dialog-text"></div></div>
+    
+    <div id="interact-hint">按空格键 [SPACE] 调查物品</div>
+    <div id="task-bar"></div>
+    
+    <div id="safe-ui"><div id="safe-screen">----</div><div id="safe-pad"></div><div class="pixel-btn" style="margin-top:15px; background:#c00; width:120px; text-align:center;" onclick="closeSafe()">关闭</div></div>
+    <div id="quiz-ui"><div id="quiz-title"></div><div id="quiz-question"></div><div id="quiz-options"></div></div>
+    <div id="transition-overlay"><div class="loader"></div><div style="margin-top:20px; font-family:monospace;">LOADING...</div></div>
+
+    <div id="claw-machine">
+        <div id="claw-header">全职高手限定抓抓乐</div>
+        <div id="claw-instruction">💡 抓到 3 只狐狸即可解锁【打地鼠机】！</div>
+        <div id="claw-status">目标：🦊 x <span id="claw-score">0</span>/3</div>
+        <div id="claw-area">
+            <div id="claw-assembly">
+                <div id="claw-rod"></div>
+                <div id="claw-hub"></div>
+                <div id="claw-left" class="claw-finger"></div>
+                <div id="claw-right" class="claw-finger"></div>
+            </div>
+            <div id="dolls-container"></div>
+        </div>
+        <div id="claw-controls">
+            <div style="font-size:14px; color:#555;">← 爪子会自动移动 →</div>
+            <div class="machine-btn" style="background:#ff4081;" onclick="clawGame.drop()">抓！</div>
+            <div class="machine-btn" style="background:#999;" onclick="clawGame.close()">退出</div>
+        </div>
+    </div>
+
+    <div id="mole-machine">
+        <div id="mole-header">
+            <div>TIME: <span id="mole-time">30</span></div>
+            <div>SCORE: <span id="mole-score">0</span>/10</div>
+        </div>
+        <div id="mole-grid">
+            <div class="mole-hole" id="hole0"></div><div class="mole-hole" id="hole1"></div><div class="mole-hole" id="hole2"></div>
+            <div class="mole-hole" id="hole3"></div><div class="mole-hole" id="hole4"></div><div class="mole-hole" id="hole5"></div>
+            <div class="mole-hole" id="hole6"></div><div class="mole-hole" id="hole7"></div><div class="mole-hole" id="hole8"></div>
+        </div>
+        <div id="mole-start-overlay">
+            <p>目标：30秒内打10个橘色地鼠(🟠)</p>
+            <p style="color:#ffd700; font-size:16px;">注意：不要打黄色地鼠(🟡)！</p>
+            <div class="pixel-btn start" style="margin-top:20px;" onclick="moleGame.start()">开始游戏</div>
+            <div class="pixel-btn" style="margin-top:10px; background:#999;" onclick="moleGame.close()">离开</div>
+        </div>
+    </div>
+
+    <div id="prize-overlay">
+        <div style="font-size:30px; margin-bottom:20px; color:#fff;">★ SUPER JACKPOT ★</div>
+        <div id="prize-container">
+            <img src="prize.png" alt="prize.png" onerror="this.style.display='none'; document.getElementById('prize-placeholder').style.display='block';">
+            <div id="prize-placeholder" style="display:none;">🎁</div>
+        </div>
+        <div style="font-size:24px; color:#ccc;">获得【限量款叶修娃娃周边】</div>
+        <div class="pixel-btn start" style="margin-top:40px;" onclick="hidePrize()">[ 点击确认 ]</div>
+    </div>
+
+    <div id="slideshow-overlay">
+        <div class="slide-frame">
+            <div class="slide-btn prev" onclick="changeSlide(-1)">&#10094;</div>
+            <div class="slide-btn next" onclick="changeSlide(1)">&#10095;</div>
+            <div class="slide-img-container">
+                <img id="slide-img-dom" src="" alt="slideX.png" onerror="this.style.display='none'; document.getElementById('slide-text-fallback').style.display='block';">
+                <div id="slide-text-fallback" style="display:none; color:white; font-size:20px; padding:20px;">
+                    <span id="slide-text-content"></span>
+                </div>
+            </div>
+            <div id="slide-icon" class="slide-deco"></div>
+        </div>
+        <div class="slide-finish-btn" onclick="finishSlideshow()">[ 跳过 / 完成回忆 ]</div>
+    </div>
+
+    <div id="input-overlay">
+        <div style="font-size:24px; color:#ffd700;">生日快乐！你有什么话想说？</div>
+        <input type="text" id="user-input" placeholder="输入你想说的话..." autocomplete="off">
+        <div class="pixel-btn start" onclick="submitFinalMsg()">发送</div>
+    </div>
+    
+    <div id="letter-overlay">
+        <div id="letter-container">
+            <img src="letter.png" alt="letter">
+        </div>
+        <div class="pixel-btn start" style="margin-top:20px;" onclick="closeLetter()">[ 收起信件 ]</div>
+    </div>
+    
+    <div id="bgm-indicator">♪ BGM: Glory - 半道英雄 ♪</div>
+    <div id="end-game-btn" onclick="location.reload()">退出 / 重新开始</div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800; canvas.height = 600;
+    ctx.imageSmoothingEnabled = false;
+
+    // V59: 音量平衡 (BGM 0.3)
+    window.onload = function() {
+        const bgmIds = ['bgm', 'claw-bgm', 'mole-bgm'];
+        bgmIds.forEach(id => { const el = document.getElementById(id); if(el) el.volume = 0.2; }); 
+        
+        const loudIds = ['slide-bgm', 'piano2']; 
+        loudIds.forEach(id => { const el = document.getElementById(id); if(el) el.volume = 1.0; });
+    };
+
+    // 全局状态
+    let gameState = "PHONE"; 
+    let currentScene = "BEDROOM";
+    let flags = {
+        phonePhase: 0, 
+        dogFound: false, dogJoined: false,
+        hallMeetLizi: false, coinCount: 0,
+        quizPassed: false,
+        clawPassed: false, moleUnlocked: false, molePassed: false,
+        finalPhase: false, dogFollowsYeXiu: false,
+        hasInteracted: false
+    };
+    let allowMainBgm = true;
+
+    const player = { x: 130, y: 220, w: 32, h: 48, color: "#ff3333", speed: 5 };
+    const dog = { x: 0, y: 0, w: 32, h: 32, color: "#ffd700", visible: false };
+    const lizi = { x: 350, y: 500, w: 32, h: 48, color: "#ff99cc", visible: false };
+    
+    const scenes = {
+        BEDROOM: {
+            bg: "#2b2b2b",
+            objects: [
+                {name:"rug", x:320, y:250, w:150, h:125, color:"#444", label:"地毯", text:"地毯上是不是可以躺一会儿...对了，小狗没有尿在这里吧。", noDog:"地毯下面没有，不过好像有根狗毛..."},
+                {name:"window", x:335, y:20, w:130, h:78, color:"#87ceeb", label:"窗户", text:"(拉开窗帘) 今天天气好晴朗，适合窝在家打游戏。", noDog:"窗帘后面也没有藏着小狗。"},
+                {name:"bed", x:100, y:100, w:90, h:138, color:"#5d9cec", label:"床", text:"好想再回去睡会儿呀...不行！小栗子还在等我！", noDog:"被子里有一团凸起，掀开一看是枕头。小狗不在床上。"},
+                {name:"bookshelf", x:510, y:80, w:80, h:150, color:"#d2691e", label:"书架", text:"名义上是书架，实际上是谷架。好几款叶修已经绝版了。", noDog:"书架缝隙里也没有...它那么胖也钻不进去吧。"},
+                {name:"desk", x:600, y:100, w:125, h:100, color:"#8a6d3b", label:"电脑桌"}, 
+                {name:"wardrobe", x:80, y:350, w:100, h:150, color:"#8b4513", label:"衣柜", text:"衣柜没收拾，有一半堆的是我和叶修的队服。", noDog:"这里貌似没有毛茸茸的小脑袋。"},
+                {name:"vanity", x:200, y:100, w:50, h:100, color:"#ffb6c1", label:"化妆台", text:"赶时间不化妆了...", noDog:"桌底下是空的，只有我的拖鞋。"},
+                {name:"safe", x:650, y:450, w:50, h:50, color:"#777", label:"保险箱"}, 
+                {name:"door", x:350, y:580, w:100, h:20, color:"#111", label:"出门"}
+            ]
+        },
+        HALL: {
+            bg: "#1e1e2e",
+            objects: [ 
+                {name:"door", x:350, y:580, w:100, h:20, color:"#444", label:"回卧室"},
+                {name:"counter", x:322, y:50, w:156, h:78, color:"#555", label:"柜台"},
+                {name:"clerk", x:380, y:80, w:40, h:48, color:"#fff", label:"店员"},
+                {name:"claw", x:150, y:120, w:100, h:100, color:"#ff00ff", label:"抓娃娃机"},
+                {name:"mole", x:550, y:120, w:100, h:100, color:"#ff4500", label:"打地鼠机"},
+                {name:"dance", x:100, y:350, w:78, h:100, color:"#e0e", label:"跳舞机", text:"跳舞机，看下歌单里有没有野蜂飞舞。"},
+                {name:"basket", x:200, y:350, w:78, h:100, color:"#fa0", label:"投篮机", text:"感觉我在这个项目上能赢过叶修，嘿嘿。"},
+                {name:"coin", x:500, y:360, w:65, h:78, color:"#0ff", label:"推币机", text:"这么多金币啊......像是魏琛前辈喜欢玩的。"},
+                {name:"arcade", x:580, y:360, w:65, h:78, color:"#0f0", label:"街霸", text:"好古早的游戏机。拳皇争霸？误入韩队的统治区了。"},
+                {name:"gun", x:660, y:360, w:65, h:78, color:"#32cd32", label:"射击", text:"不知道职业选手在这里能不能用上押枪技巧。"},
+                {name:"lizi_npc", x:50, y:150, w:32, h:48, color:"#ff99cc", label:"小栗子"}, 
+                {name:"yexiu", x:380, y:200, w:36, h:52, color:"#000", label:"叶修", visible:false},
+                {name:"cake", x:350, y:360, w:100, h:100, color:"#ff99cc", label:"", visible:false}
+            ]
+        }
+    };
+
+    const dialogs = {
+        desk_full: [{n:"小葵",t:"电脑桌下面没有小狗，躲哪儿去了？"}, {n:"小葵",t:"电脑开着，昨晚的荣耀比赛还没看完...说起来，叶修人呢？"}],
+        safe_locked: [{n:"保险箱",t:"没有密码我是不会开的。"}],
+        dog_found: [{n:"小狗",t:"汪！(转圈圈)"},{n:"小葵",t:"啊啊啊啊小狗，你怎么和叶修的银行卡睡到一起去了？快出来！"},{n:"系统",t:"【小狗】加入了队伍。"},{n:"系统",t:"（记得看一眼手机，给小栗子回个信）"}],
+        safe_empty: [{n:"小葵",t:"里面只剩下叶修的银行卡了，还是别动了。"}],
+        door_locked: [{n:"小葵",t:"不行，我得带上小狗，不然小栗子会急哭的。"}],
+        hall_meet: [{n:"小栗子",t:"终于来啦，小狗也在！走，我们去换币！"},{n:"系统",t:"【小栗子】加入队伍。"}],
+        clerk_buy: [
+            {n:"店员",t:"三位好，欢迎光临我们的游戏厅。请问你们需要多少枚游戏币？"},
+            {n:"小葵",t:"要不…先来200个？应该够玩一阵吧。"},
+            {n:"店员",t:"好的，那一共是20狗狗币哦。"},
+            {n:"小葵",t:"gogo币，那是什么东西？现金支付可以嘛？"},
+            {n:"店员",t:"(指了指身后的牌子)这里是狗狗游戏厅，我们只收取狗狗币哦。"},
+            {n:"小葵",t:"(完了，我们是传送过来的，没有看到牌子)"},
+            {n:"小栗子",t:"那怎么办捏…小狗小狗，你快想办法呀！"},
+            {n:"小狗",t:"汪汪！(急得咬自己尾巴)"},
+            {n:"店员",t:"哇，好听话的狗狗！白色的柴犬脾气这么好？来，这枚游戏币给你。"},
+            {n:"小狗",t:"汪汪！(谢谢！)"},
+            {n:"系统",t:"获得【游戏币】x1"},
+            {n:"店员",t:"好吧，其实我们有一个荣耀粉限定活动，答对关于荣耀的问题还可以获取游戏币！不过每人最多拿一个哦。"},
+            {n:"小葵",t:"(太好了，这根本不难)谢谢你告诉我们！那么，请开始提问吧。"},
+            {n:"小栗子",t:"好耶，问题是什么？"} 
+        ],
+        lizi_quiz_wrong: [{n:"小栗子",t:"女神保佑！选c！"},{n:"店员",t:"...错，但是再给你们一次机会吧。"}],
+        quiz_pass: [{n:"小葵",t:"散人！"},{n:"店员",t:"回答正确，恭喜恭喜，真不容易！现在可以去玩抓娃娃赢我们今天的大奖啦(递过来两枚游戏币)。"},{n:"系统",t:"获得【游戏币】x2。现有：3枚。抓娃娃机解锁！"}],
+        hall_lock_claw: [{n:"系统",t:"【提示】先去玩抓娃娃机赢取奖品！"}],
+        claw_win: [{n:"小栗子",t:"哇！是限量版的狐狸！好厉害！"}, {n:"系统",t:"【打地鼠机】已解锁！去试试身手吧！"}],
+        finale_1: [{n:"小葵",t:"超级大奖居然是这个！小栗子，你是不是早就知道？"},{n:"小狗",t:"汪汪，汪汪汪！（对啊，瞒着你）"}],
+        finale_2: [{n:"叶修",t:"小家伙手速可以啊。有兴趣参加我们打地鼠职业联盟赛吗？"},{n:"小葵",t:"(惊!)  我一大早都没有见到你，叶修，你去哪里了？"},{n:"小狗",t:"汪汪？（葵你这个家伙压根没有早上起床吧）"},{n:"叶修",t:"（招手）小狗，过来。"}],
+        finale_3_tape: [{n:"系统",t:"小狗不再跟随小葵。"},{n:"系统",t:"小狗从叶修那里叼过来一盘录像带。"},{n:"小葵",t:"(接过录像带) 这是..."}],
+        finale_4_happy: [{n:"叶修",t:"(笑) 生日快乐，我的女主角。"},{n:"小栗子 & 小狗",t:"小葵，生日快乐（汪汪汪汪）！！！"}]
+    };
+
+    // V59: 纯图 Slide
+    const slideData = [
+        {img: "slide1.png"},
+        {img: "slide2.png"},
+        {img: "slide3.png"},
+        {img: "slide4.png"},
+        {img: "slide5.png"},
+        {img: "slide6.png"},
+        {img: "slide7.png"}
+    ];
+
+    function preloadAssets(cb) { setTimeout(cb, 100); }
+    
+    const imgCache = {};
+    const imgSources = [
+        'player.png','dog.png','lizi.png','prize.png', 'lizi_avatar.png',
+        'bg_bedroom.png', 'bed.png', 'desk.png', 'vanity.png', 
+        'wardrobe.png', 'bookshelf.png', 'rug.png', 'safe.png', 'window.png',
+        'bg_hall.png', 'counter.png', 'clerk.png', 
+        'mole.png', 'claw.png', 
+        'dance.png', 'basket.png', 
+        'coin.png', 'arcade.png', 'gun.png',
+        'yexiu.png', 'cake.png', 'letter.png' 
+    ];
+    imgSources.forEach(src => { const i = new Image(); i.src = src; i.onload=()=>{imgCache[src]=i;}; });
+
+    function drawSprite(name, x, y, w, h, c) {
+        const map = {
+            'bed': 'bed.png', 'desk': 'desk.png', 'vanity': 'vanity.png',
+            'wardrobe': 'wardrobe.png', 'bookshelf': 'bookshelf.png', 'rug': 'rug.png',
+            'safe': 'safe.png', 'window': 'window.png', 'player': 'player.png',
+            'dog': 'dog.png', 'lizi': 'lizi.png', 'lizi_npc': 'lizi.png',
+            'counter': 'counter.png', 'clerk': 'clerk.png', 'mole': 'mole.png',
+            'claw': 'claw.png', 'dance': 'dance.png', 'basket': 'basket.png',
+            'coin': 'coin.png', 'arcade': 'arcade.png', 'gun': 'gun.png',
+            'yexiu': 'yexiu.png', 'cake': 'cake.png'
+        };
+
+        if(map[name] && imgCache[map[name]]) {
+            ctx.drawImage(imgCache[map[name]], x, y, w, h);
+        } else {
+            ctx.fillStyle = c || '#f0f'; ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.strokeRect(x, y, w, h);
+            if(name==='yexiu') { ctx.fillStyle="#fff"; ctx.font="12px monospace"; ctx.fillText("🚬", x+10, y+10); }
+        }
+    }
+
+    function playAudio(id) { const a=document.getElementById(id); if(a){a.currentTime=0; a.play().catch(e=>{});} }
+    function stopAudio(id) { const a=document.getElementById(id); if(a){a.pause(); a.currentTime=0;} }
+    
+    function tryPlayBgm() { 
+        const bgm=document.getElementById('bgm'); 
+        if(allowMainBgm && bgm && bgm.paused) {
+            bgm.play().catch(e=>{}); 
+        }
+    }
+    
+    function stopAllMusic() {
+        stopAudio('bgm'); stopAudio('claw-bgm'); stopAudio('mole-bgm'); stopAudio('slide-bgm'); stopAudio('piano2');
+    }
+
+    function initPhone(phase) {
+        const p=document.getElementById('phone-overlay'); const c=document.getElementById('phone-messages'); const f=document.getElementById('phone-footer'); const h=document.getElementById('phone-header');
+        p.style.display='flex'; f.innerHTML="";
+        
+        const add=(t,m)=>{ 
+            h.innerText="栗子10.26"; 
+            const r=document.createElement('div'); r.className="msg-row"+(m?" me":""); 
+            const avatarHtml = m ? "" : `<img src="lizi_avatar.png" class="avatar-img" onerror="this.style.display='none'">`;
+            r.innerHTML=avatarHtml+`<div class="bubble">${t}</div>`; 
+            c.appendChild(r); c.scrollTop=c.scrollHeight; 
+        }
+        
+        const type=(cb,d)=>{ h.innerText="正在输入..."; setTimeout(cb,d); }
+        if(phase===1) {
+            setTimeout(()=>type(()=>add("快醒醒，小宝！"),1500),500); setTimeout(()=>type(()=>add("三点半了，我们今天要参加游戏厅的活动！"),1500),2500);
+            setTimeout(()=>{ const b=document.createElement('div'); b.className="pixel-btn"; b.innerText="啊啊啊啊啊啊我睡过头了！"; b.onclick=()=>{ add("啊啊啊啊啊啊我睡过头了！",1); tryPlayBgm(); f.innerHTML=""; setTimeout(()=>type(()=>add("没关系，来得及！"),1500),500); setTimeout(()=>type(()=>add("小狗和你在一起吗？我找了一上午找不到它！"),1500),2500); setTimeout(()=>{ const b2=document.createElement('div'); b2.className="pixel-btn start"; b2.innerText="关闭手机"; b2.onclick=()=>{ p.style.display='none'; canvas.focus(); gameState="PLAY"; document.getElementById('task-bar').style.display='block'; document.getElementById('task-bar').innerText="任务：请按【顺时针】方向排查家具寻找小狗"; document.getElementById('interact-hint').style.display='block'; }; f.appendChild(b2); }, 4500); } ; f.appendChild(b); },4500);
+        } else {
+            const b=document.createElement('div'); b.className="pixel-btn"; b.innerText="找到它了，可是为什么带狗去游戏厅？";
+            b.onclick=()=>{ add("找到它了，可是为什么带狗去游戏厅？",1); f.innerHTML=""; setTimeout(()=>type(()=>add("可爱就是有用，相信我！",0),1000),500); setTimeout(()=>{ const b2=document.createElement('div'); b2.className="pixel-btn start"; b2.innerText="出发 >"; b2.onclick = () => { p.style.display='none'; canvas.focus(); gameState="PLAY"; flags.phonePhase=2; document.getElementById('task-bar').innerText="任务：前往游戏厅"; }; f.appendChild(b2); }, 2000); }
+            f.appendChild(b);
+        }
+    }
+
+    let safeCode="", safeFails=0;
+    function initSafe() { document.getElementById('safe-ui').style.display='flex'; document.getElementById('safe-pad').innerHTML=""; for(let i=1;i<=9;i++) mkKey(i); mkKey(0); updateSafe(); }
+    function mkKey(n) { const k=document.createElement('div'); k.className="safe-btn"; k.innerText=n; k.onclick=()=>{if(safeCode.length<4)safeCode+=n;updateSafe();if(safeCode.length===4)checkSafe();}; document.getElementById('safe-pad').appendChild(k); }
+    function updateSafe() { document.getElementById('safe-screen').innerText=safeCode.padEnd(4,'-'); }
+    function closeSafe() { document.getElementById('safe-ui').style.display='none'; gameState="PLAY"; }
+    function checkSafe() { 
+        if(safeCode==="1128") { 
+            closeSafe(); 
+            flags.dogFound=true; flags.dogJoined=true; dog.visible=true; 
+            playAudio('dog-bark-sfx'); 
+            tryPlayBgm();
+            startDialog(dialogs.dog_found); 
+        } else { 
+            safeCode=""; updateSafe(); safeFails++; 
+            if(safeFails>=3) alert("提示：你的生日是什么时候？"); else alert("密码错误"); 
+        } 
+    }
+
+    const clawGame = {
+        score: 0, clawX: 20, clawDir: 1, 
+        clawSpeed: 3, 
+        animId: null, isDropping: false, dollsStopped: false, dolls: [],
+        
+        init: function() {
+            gameState = "MINIGAME"; this.score = 0; this.clawX = 20; this.clawDir = 1; this.isDropping = false; this.dollsStopped = false;
+            document.getElementById('claw-score').innerText = "0"; document.getElementById('claw-machine').style.display = 'flex';
+            
+            document.getElementById('bgm').pause();
+            playAudio('claw-bgm');
+            this.spawnDolls(); this.loop();
+        },
+        spawnDolls: function() {
+            const container = document.getElementById('dolls-container'); container.innerHTML = ""; this.dolls = [];
+            const types = ["🦊","🐻","🐰","🐶","🐼"];
+            for(let i=0; i<5; i++) {
+                const type = types[Math.floor(Math.random() * types.length)];
+                const finalType = (i===2 && !this.dolls.some(d=>d.t==="🦊")) ? "🦊" : type;
+                const d = document.createElement('div'); d.className = "doll"; d.innerText = finalType;
+                const x = 50 + i * 80 + (Math.random()*20 - 10); d.style.left = x + "px";
+                container.appendChild(d); 
+                const spd = 2 + Math.random() * 2.5;
+                this.dolls.push({el: d, x: x, t: finalType, dir: Math.random()>0.5?1:-1, speed: spd});
+            }
+        },
+        loop: function() {
+            if(gameState !== "MINIGAME") return;
+            if(!this.isDropping) {
+                this.clawX += this.clawSpeed * this.clawDir;
+                if(this.clawX > 440 || this.clawX < 0) this.clawDir *= -1;
+                document.getElementById('claw-assembly').style.left = (this.clawX + 20) + "px"; 
+            }
+            
+            if(!this.dollsStopped) {
+                this.dolls.forEach(d => {
+                    if(Math.random() < 0.05) d.dir *= -1; 
+                    d.x += d.dir * d.speed; 
+                    if(d.x < 10) d.dir = 1; if(d.x > 440) d.dir = -1; d.el.style.left = d.x + "px";
+                });
+            }
+            this.animId = requestAnimationFrame(()=>this.loop());
+        },
+        drop: function() {
+            if(this.isDropping) return; 
+            this.isDropping = true;
+            this.dollsStopped = true; 
+            playAudio('claw-drop-sfx');
+            const arm = document.getElementById('claw-assembly'); arm.style.height = "380px";
+            setTimeout(() => { this.checkHit(); arm.style.height = "100px"; setTimeout(() => { this.isDropping = false; this.dollsStopped = false; }, 500); }, 500);
+        },
+        checkHit: function() {
+            const clawCenter = this.clawX + 20; 
+            
+            // V57 Smart Scheme
+            let bestDoll = null;
+            let minDist = Infinity;
+            const range = 20;
+
+            for(let i=0; i<this.dolls.length; i++) {
+                const d = this.dolls[i];
+                const dist = Math.abs(clawCenter - (d.x + 25));
+                if(dist < range && dist < minDist) {
+                    minDist = dist;
+                    bestDoll = d;
+                }
+            }
+
+            if (bestDoll) {
+                if(bestDoll.t === "🦊") { this.score++; document.getElementById('claw-score').innerText = this.score; alert("抓到了狐狸！"); } 
+                else if(bestDoll.t === "🐻") { alert("系统：好沉一只...根本抓不起来..."); }
+                else if(bestDoll.t === "🐰") { alert("系统：兔子蹬了一脚爪子，溜了！"); }
+                else if(bestDoll.t === "🐶") { alert("小狗：汪？（队友你也抓？）"); }
+                else if(bestDoll.t === "🐼") { alert("系统：这是国宝！快放爪！"); }
+                if(this.score >= 3) this.win(); else this.spawnDolls();
+            } else {
+                // Missed
+            }
+        },
+        win: function() {
+            cancelAnimationFrame(this.animId); document.getElementById('claw-machine').style.display = 'none';
+            stopAudio('claw-bgm'); 
+            tryPlayBgm(); 
+            gameState = "PLAY"; flags.clawPassed = true; flags.moleUnlocked = true; startDialog(dialogs.claw_win);
+        },
+        close: function() { 
+            cancelAnimationFrame(this.animId); document.getElementById('claw-machine').style.display = 'none'; 
+            stopAudio('claw-bgm'); 
+            tryPlayBgm(); 
+            gameState = "PLAY"; 
+        }
+    };
+
+    const moleGame = {
+        score: 0, time: 30, timerId: null, spawnId: null, speed: 1000,
+        open: function() { 
+            gameState = "MINIGAME"; 
+            document.getElementById('mole-machine').style.display = 'flex'; 
+            document.getElementById('mole-start-overlay').style.display = 'flex';
+            document.getElementById('bgm').pause();
+            playAudio('mole-bgm'); 
+        },
+        start: function() {
+            this.score = 0; this.time = 30; this.speed = 1000;
+            document.getElementById('mole-score').innerText = 0; document.getElementById('mole-time').innerText = 30;
+            document.getElementById('mole-start-overlay').style.display = 'none';
+            this.gameLoop();
+            this.timerId = setInterval(() => { this.time--; document.getElementById('mole-time').innerText = this.time; if(this.time <= 0) this.end(false); }, 1000);
+        },
+        gameLoop: function() {
+            if(this.time <= 0) return;
+            let stayTime = 800; let nextDelay = 1000; let count = 1;
+            if (this.score >= 7) { stayTime = 400; nextDelay = 400; count = 2; } else if (this.score >= 3) { stayTime = 500; nextDelay = 600; }
+            for(let i=0; i<count; i++) this.spawnMole(stayTime);
+            this.spawnId = setTimeout(() => this.gameLoop(), nextDelay);
+        },
+        spawnMole: function(stayTime) {
+            const holeIdx = Math.floor(Math.random() * 9); const hole = document.getElementById('hole' + holeIdx);
+            if(hole.querySelector('.mole-sprite')) return;
+            const isYellow = Math.random() < 0.2; const typeClass = isYellow ? 'mole-yellow' : 'mole-orange'; const icon = isYellow ? '🟡' : '🟠';
+            const mole = document.createElement('div'); mole.className = `mole-sprite ${typeClass}`; mole.innerText = icon;
+            mole.onmousedown = (e) => {
+                e.stopPropagation();
+                if(isYellow) { 
+                    this.score = Math.max(0, this.score - 1); mole.innerText = "❌"; 
+                } else { 
+                    this.score++; mole.innerText = "💥"; 
+                    playAudio('hit-sfx'); 
+                }
+                document.getElementById('mole-score').innerText = this.score;
+                setTimeout(() => { if(mole.parentNode) mole.parentNode.removeChild(mole); }, 200);
+                if(this.score >= 10) this.end(true);
+            };
+            hole.appendChild(mole); setTimeout(() => mole.classList.add('up'), 50);
+            setTimeout(() => { if(mole.parentNode) { mole.classList.remove('up'); setTimeout(() => { if(mole.parentNode) mole.parentNode.removeChild(mole); }, 200); } }, stayTime);
+        },
+        end: function(win) {
+            clearInterval(this.timerId); clearTimeout(this.spawnId);
+            document.querySelectorAll('.mole-sprite').forEach(e => e.remove());
+            if(win) { flags.molePassed = true; this.close(); showPrize(); } 
+            else { alert("时间到了！还差一点，再试一次吧！"); document.getElementById('mole-start-overlay').style.display = 'flex'; }
+        },
+        close: function() { 
+            clearInterval(this.timerId); clearTimeout(this.spawnId); 
+            document.getElementById('mole-machine').style.display = 'none'; 
+            stopAudio('mole-bgm'); 
+            tryPlayBgm(); 
+            gameState = "PLAY"; 
+        }
+    };
+
+    function showPrize() { 
+        gameState = "PRIZE"; 
+        document.getElementById('prize-overlay').style.display = 'flex'; 
+        allowMainBgm = false; 
+        document.getElementById('bgm').pause(); 
+        playAudio('win-sfx'); 
+        
+        document.getElementById('win-sfx').onended = function() {
+            allowMainBgm = true;
+            tryPlayBgm();
+        };
+    }
+    
+    function hidePrize() { 
+        if(gameState !== "PRIZE") return; 
+        document.getElementById('prize-overlay').style.display = 'none'; 
+        allowMainBgm = true;
+        tryPlayBgm();
+        gameState = "DIALOG"; flags.finalPhase = true; startDialog(dialogs.finale_1); 
+    }
+    function startFinaleSequence() { const yexiu = scenes.HALL.objects.find(o=>o.name==="yexiu"); yexiu.visible = true; yexiu.color = "#808080"; startDialog(dialogs.finale_2); }
+    function dogMoveToYeXiu() { flags.dogFollowsYeXiu = true; startDialog(dialogs.finale_3_tape); }
+
+    let slideIdx = 0;
+    function playSlideshow() { 
+        gameState = "SLIDE"; document.getElementById('slideshow-overlay').style.display = 'flex'; 
+        slideIdx = 0; 
+        updateSlide(0);
+        
+        allowMainBgm = false;
+        document.getElementById('bgm').pause(); 
+        playAudio('slide-bgm'); 
+        
+        const sBgm = document.getElementById('slide-bgm');
+        sBgm.onended = () => { finishSlideshow(); };
+    }
+    
+    function updateSlide(idx) {
+        if(idx < 0) idx = 0;
+        if(idx >= slideData.length) idx = slideData.length - 1;
+        slideIdx = idx;
+        
+        const s = slideData[slideIdx];
+        const imgDom = document.getElementById('slide-img-dom'); 
+        const txtFallback = document.getElementById('slide-text-fallback'); 
+        imgDom.style.display = 'block'; txtFallback.style.display = 'none';
+        imgDom.src = s.img; 
+    }
+    
+    function changeSlide(dir) {
+        updateSlide(slideIdx + dir);
+    }
+    
+    function finishSlideshow() {
+        document.getElementById('slideshow-overlay').style.display = 'none'; 
+        stopAudio('slide-bgm');
+        showInput();
+    }
+
+    function showInput() { gameState = "INPUT"; document.getElementById('input-overlay').style.display = 'flex'; document.getElementById('user-input').focus(); }
+    
+    // V59: 提交输入 -> 显示信件 (不直接大结局)
+    function submitFinalMsg() { 
+        const txt = document.getElementById('user-input').value || "...";
+        document.getElementById('input-overlay').style.display = 'none'; 
+        
+        // 保存用户输入，准备一会儿用
+        const userLine = {n: "小葵", t: txt};
+        if(dialogs.finale_4_happy[0].n !== "小葵") {
+            dialogs.finale_4_happy.unshift(userLine);
+        }
+        
+        // 触发读信环节
+        showLetter();
+    }
+    
+    // V59: 读信逻辑
+    function showLetter() {
+        gameState = "LETTER";
+        document.getElementById('letter-overlay').style.display = 'flex';
+        allowMainBgm = false;
+        stopAllMusic();
+        playAudio('piano2'); // 播放读信BGM
+    }
+    
+    // V59: 关闭信件 -> 获得道具 -> 触发大结局
+    function closeLetter() {
+        document.getElementById('letter-overlay').style.display = 'none';
+        stopAudio('piano2');
+        
+        // 插入获得道具的系统提示
+        const items = [
+            {n:"系统", t:"获得 [叶修的运动背包] x1"},
+            {n:"系统", t:"获得 [叶修的宝丽来相机] x1"},
+            {n:"系统", t:"获得 [叶修的毛绒狐狸打地鼠机] x1"},
+            {n:"系统", t:"获得 [叶修的娃娃周边] x1"}
+        ];
+        
+        // 将道具提示插到大结局对话之前
+        // 注意顺序：先显示道具，再显示刚才用户的输入，再显示叶修回复
+        dialogs.finale_4_happy = items.concat(dialogs.finale_4_happy);
+        
+        startDialog(dialogs.finale_4_happy);
+    }
+    
+    function triggerHappyEnding() { 
+        gameState = "END"; 
+        document.getElementById('bgm-indicator').style.display = 'block'; 
+        
+        allowMainBgm = false;
+        stopAllMusic();
+        
+        alignCharactersForEnding();
+        
+        playAudio('firework-sfx');
+        startFireworks(); 
+        
+        const fSfx = document.getElementById('firework-sfx');
+        fSfx.onended = () => { 
+            alert("游戏结束！生日快乐！"); 
+            document.getElementById('end-game-btn').style.display = 'block';
+        };
+    }
+    
+    function alignCharactersForEnding() {
+        lizi.x = 300; lizi.y = 300; lizi.visible = true;
+        player.x = 350; player.y = 300;
+        const yexiu = scenes.HALL.objects.find(o => o.name === "yexiu");
+        if(yexiu) { yexiu.x = 400; yexiu.y = 300; yexiu.visible = true; }
+        dog.x = 450; dog.y = 300; dog.visible = true;
+        
+        const cake = scenes.HALL.objects.find(o => o.name === "cake");
+        if(cake) cake.visible = true;
+        
+        draw(); 
+    }
+
+    const particles = [];
+    function startFireworks() {
+        document.getElementById('fireworks-canvas').style.display = 'block';
+        const ctxF = document.getElementById('fireworks-canvas').getContext('2d');
+        // V59: 烟花加强 (0.1s)
+        setInterval(() => { createFirework(Math.random()*800, Math.random()*400); }, 100);
+        function animateF() {
+            ctxF.clearRect(0,0,800,600);
+            for(let i=0; i<particles.length; i++) {
+                const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life--; p.vy += 0.05; ctxF.fillStyle = p.color; ctxF.fillRect(p.x, p.y, 4, 4);
+            }
+            for(let i=particles.length-1; i>=0; i--) { if(particles[i].life<=0) particles.splice(i,1); }
+            requestAnimationFrame(animateF);
+        }
+        animateF();
+    }
+    function createFirework(x, y) {
+        const colors = ["#f00", "#0f0", "#00f", "#ff0", "#0ff", "#f0f", "#fff"]; const c = colors[Math.floor(Math.random()*colors.length)];
+        // V59: 粒子加倍 (100)
+        for(let i=0; i<100; i++) {
+            const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 3 + 1;
+            particles.push({ x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 60 + Math.random()*40, color: c });
+        }
+    }
+
+    const keys={}; window.onkeydown=e=>{ 
+        keys[e.key]=true; 
+        if(e.code==="Space") { 
+            if(gameState==="PRIZE") hidePrize(); else interact(); 
+        } 
+    }; window.onkeyup=e=>keys[e.key]=false;
+    
+    function loop() {
+        if(gameState==="PLAY" || gameState==="DIALOG") { 
+            if(gameState==="PLAY") {
+                if(keys['w']||keys['ArrowUp'])player.y-=player.speed; if(keys['s']||keys['ArrowDown'])player.y+=player.speed;
+                if(keys['a']||keys['ArrowLeft'])player.x-=player.speed; if(keys['d']||keys['ArrowRight'])player.x+=player.speed;
+                if(player.x<0)player.x=0; if(player.y<0)player.y=0; if(player.x>768)player.x=768; if(player.y>552)player.y=552;
+                if(keys['w']||keys['s']||keys['a']||keys['d']) tryPlayBgm();
+            }
+            if(flags.dogJoined) {
+                let targetX = player.x, targetY = player.y;
+                if(flags.dogFollowsYeXiu) { const yexiu = scenes.HALL.objects.find(o=>o.name==="yexiu"); targetX = yexiu.x; targetY = yexiu.y; }
+                dog.x += (targetX - dog.x)*0.1; dog.y += (targetY+40 - dog.y)*0.1;
+            }
+            if(flags.hallMeetLizi) { lizi.x+=(dog.x-lizi.x)*0.1; lizi.y+=(dog.y+40-lizi.y)*0.1; }
+        }
+        draw(); requestAnimationFrame(loop);
+    }
+    
+    function draw() {
+        ctx.fillStyle = scenes[currentScene].bg || "#000"; 
+        ctx.fillRect(0, 0, 800, 600);
+
+        let bgImg = null;
+        if(currentScene === "BEDROOM") bgImg = imgCache['bg_bedroom.png'];
+        if(currentScene === "HALL") bgImg = imgCache['bg_hall.png'];
+
+        if(bgImg) {
+             const pat = ctx.createPattern(bgImg, 'repeat');
+             ctx.fillStyle = pat;
+             ctx.fillRect(0, 0, 800, 600);
+        }
+
+        scenes[currentScene].objects.forEach(o => {
+            if(o.name==="lizi_npc" && flags.hallMeetLizi) return;
+            if(o.visible === false) return; 
+            
+            drawSprite(o.name, o.x, o.y, o.w, o.h, o.color);
+            
+            if(o.label) {
+                ctx.fillStyle="white"; ctx.font="12px Arial"; ctx.fillText(o.label, o.x, o.y-5);
+            }
+        });
+        
+        if(lizi.visible) drawSprite('lizi',lizi.x,lizi.y,lizi.w,lizi.h,lizi.color);
+        if(dog.visible) drawSprite('dog',dog.x,dog.y,dog.w,dog.h,dog.color);
+        drawSprite('player',player.x,player.y,player.w,player.h,player.color);
+    }
+    
+    function interact() {
+        if(!flags.hasInteracted) {
+            flags.hasInteracted = true;
+            document.getElementById('interact-hint').style.display = 'none';
+            tryPlayBgm(); 
+        }
+
+        if(gameState==="DIALOG") { nextDialog(); return; }
+        if(gameState!=="PLAY") return;
+        let t = scenes[currentScene].objects.find(o => Math.abs(player.x+16-(o.x+o.w/2))<60 && Math.abs(player.y+24-(o.y+o.h/2))<60);
+        if(t) {
+            if(currentScene==="BEDROOM" && !flags.dogFound && t.name!=="safe" && t.name!=="door") {
+                if(t.name==="desk") startDialog(dialogs.desk_full); else if(t.noDog) startDialog([{n:"小葵",t:t.text}, {n:"小葵",t:t.noDog}]); else if(t.text) startDialog([{n:"小葵",t:t.text}, {n:"小葵",t:"……这里也没有。"}]); return;
+            }
+            if(t.name==="desk") { startDialog(dialogs.desk_full); return; }
+            if(t.text && !t.name.startsWith("machine") && t.name!=="dance" && t.name!=="basket" && t.name!=="coin" && t.name!=="arcade" && t.name!=="gun") { startDialog([{n:"小葵",t:t.text}]); return; }
+            if(["dance","basket","coin","arcade","gun"].includes(t.name)) { startDialog([{n:"小葵",t:t.text}]); return; }
+            if(t.name==="safe") initSafe();
+            else if(t.name==="door") {
+                if(currentScene==="BEDROOM") { if(!flags.dogJoined) startDialog(dialogs.door_locked); else if(flags.phonePhase<2) initPhone(2); else transition("HALL", 350, 500); } else transition("BEDROOM", 350, 500);
+            }
+            else if(t.name==="lizi_npc") { flags.hallMeetLizi=true; lizi.visible=true; startDialog(dialogs.hall_meet); }
+            else if(t.name==="clerk" || t.name==="counter") interactClerk(); 
+            else if(t.name==="claw") interactClaw(); else if(t.name==="mole") interactMole();
+            else if(t.name==="yexiu") startDialog([{n:"叶修",t:"哥的传说，还在继续。"}]);
+        }
+    }
+    function transition(to, x, y) {
+        document.getElementById('transition-overlay').style.display='flex';
+        if(to === "HALL") document.getElementById('task-bar').style.display='none';
+        setTimeout(()=>{
+            currentScene=to; player.x=x; player.y=y;
+            if(flags.dogJoined){dog.x=x+40;dog.y=y;} if(flags.hallMeetLizi){lizi.x=x-40;lizi.y=y;}
+            document.getElementById('transition-overlay').style.display='none';
+        }, 1500);
+    }
+    function startDialog(list) { dialogQueue=[...list]; gameState="DIALOG"; document.getElementById('dialog-box').classList.remove('hidden'); nextDialog(); }
+    function nextDialog() {
+        if(dialogQueue.length===0) {
+            document.getElementById('dialog-box').classList.add('hidden'); gameState="PLAY";
+            const t=document.getElementById('dialog-text').innerText;
+            if(t.includes("手机")) initPhone(2);
+            if(t.includes("问题是什么")) { flags.coinCount=1; startQuiz(0); }
+            if(t.includes("再给你们一次机会")) startQuiz(2);
+            if(t.includes("瞒着你")) startFinaleSequence(); if(t.includes("小狗，过来")) dogMoveToYeXiu(); if(t.includes("接过录像带")) playSlideshow(); if(t.includes("生日快乐")) triggerHappyEnding();
+            return;
+        }
+        const l=dialogQueue.shift(); document.getElementById('dialog-name').innerText=l.n; document.getElementById('dialog-text').innerText=l.t;
+    }
+    function interactClerk() { if(!flags.hallMeetLizi) { startDialog([{n:"系统",t:"先找小栗子！"}]); return; } if(flags.coinCount===0) startDialog(dialogs.clerk_buy); else if(flags.coinCount===1) startQuiz(0); else startDialog([{n:"店员",t:"快去玩吧！"}]); }
+    function interactClaw() { if(!flags.hallMeetLizi) { startDialog([{n:"系统",t:"先找小栗子！"}]); return; } if(flags.coinCount<3) { startDialog([{n:"系统",t:"没币！去找店员换。"}]); return; } if(flags.clawPassed) { startDialog([{n:"系统",t:"娃娃已经抓够啦！去玩打地鼠吧。"}]); return; } clawGame.init(); }
+    function interactMole() { if(!flags.moleUnlocked) { startDialog([{n:"系统",t:"【锁定】请先通过抓娃娃机，赢取挑战资格！"}]); return; } if(flags.molePassed) { startDialog([{n:"系统",t:"这台机器的记录已经是你的了！"}]); return; } moleGame.open(); }
+    function startQuiz(step) {
+        gameState="QUIZ"; const ui=document.getElementById('quiz-ui'); ui.style.display='flex'; const qt=document.getElementById('quiz-question'); const qo=document.getElementById('quiz-options'); qo.innerHTML="";
+        if(step===0) { document.getElementById('quiz-title').innerText="Q1 小葵"; qt.innerText="张佳乐是______？"; [{t:"A. 山东人"},{t:"B. 枪炮师"},{t:"C. 云南人",ok:true},{t:"D. 冠军",egg:true}].forEach(o=>mkQBtn(o,0)); } 
+        else if(step===1) { document.getElementById('quiz-title').innerText="Q2 小栗子"; qt.innerText="叶修是______？"; ["A. 河南人","B. 散人","C. 联盟女神","D. 河北人"].forEach(t=>{ const b=document.createElement('div'); b.className='quiz-option-btn'; b.innerText=t; qo.appendChild(b); }); setTimeout(()=>{ ui.style.display='none'; startDialog(dialogs.lizi_quiz_wrong); }, 3000); } 
+        else { document.getElementById('quiz-title').innerText="Q2 补答"; qt.innerText="叶修是______？"; [{t:"A. 河南人"},{t:"B. 散人",ok:true},{t:"C. 联盟女神"},{t:"D. 河北人"}].forEach(o=>mkQBtn(o,2)); }
+    }
+    function mkQBtn(o, step) { const b=document.createElement('div'); b.className="quiz-option-btn"; b.innerText=o.t; b.onclick=()=>{ if(o.egg) { alert("店员：借你吉言！算过！"); startQuiz(1); } else if(o.ok) { if(step===0) startQuiz(1); else { document.getElementById('quiz-ui').style.display='none'; flags.coinCount=3; startDialog(dialogs.quiz_pass); } } else alert("错！"); }; document.getElementById('quiz-options').appendChild(b); }
+
+    preloadAssets(); initPhone(1); loop();
+</script>
+</body>
+</html>
